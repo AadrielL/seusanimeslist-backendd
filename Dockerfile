@@ -6,9 +6,9 @@ WORKDIR /app
 # Assegure-se que os pacotes necessários para download e descompactação estejam disponíveis
 RUN apt-get update && apt-get install -y wget unzip && \
     wget https://archive.apache.org/dist/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.zip -P /tmp && \
-    unzip -d /opt/maven /tmp/apache-maven-3.9.6-bin.zip && \
+    unzip -d /opt/maven /tmp/apache-maven-3.9.9-bin.zip && \
     rm /tmp/apache-maven-3.9.6-bin.zip && \
-    ln -s /opt/maven/apache-maven-3.9.6/bin/mvn /usr/local/bin/mvn
+    ln -s /opt/maven/apache-maven-3.9.9/bin/mvn /usr/local/bin/mvn
 
 # Agora, o Maven está disponível, continue com o build
 COPY pom.xml .
