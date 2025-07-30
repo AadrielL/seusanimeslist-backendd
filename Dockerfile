@@ -32,3 +32,5 @@ COPY --from=builder /app/target/seusanimes-backend-0.0.1-SNAPSHOT.jar ./app.jar
 
 # Define o comando de inicialização da aplicação
 ENTRYPOINT ["java", "-jar", "app.jar"]
+# Alteração trivial para forçar novo deploy
+# Ultima tentativa!
