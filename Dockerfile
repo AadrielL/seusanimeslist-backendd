@@ -1,5 +1,5 @@
 # Estágio de Build
-FROM openjdk:21-jdk as builder 
+FROM openjdk:21-jdk-slim-bullseye as builder 
 WORKDIR /app
 
 # Instala o Maven manualmente
@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y wget unzip && \
     wget https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.zip -P /tmp && \
     unzip -d /opt/maven /tmp/apache-maven-3.9.9-bin.zip && \
-    rm /tmp/apache-maven-3.9.6-bin.zip && \
+    rm /tmp/apache-maven-3.9.9-bin.zip && \
     ln -s /opt/maven/apache-maven-3.9.9/bin/mvn /usr/local/bin/mvn
 
 # Agora, o Maven está disponível, continue com o build
