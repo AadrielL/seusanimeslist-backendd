@@ -1,8 +1,8 @@
 # Estágio de Build
-FROM openjdk:21-jdk-slim as builder
+FROM maven:3.9.6-openjdk-21 as builder 
 WORKDIR /app
 
-
+# Copia o arquivo pom.xml e faz o download das dependências do Maven
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
@@ -13,7 +13,7 @@ COPY src ./src
 RUN mvn package -DskipTests
 
 # Estágio de Runtime
-FROM eclipse-temurin:21-jre-alpine 
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Exponha a porta que sua aplicação Spring Boot escuta (8081, conforme seu application.properties)
