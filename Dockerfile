@@ -1,5 +1,5 @@
 # Estágio de Build
-FROM maven:3.9.9-openjdk-21-slim as builder # <--- MUDANÇA AQUI (agora com Maven 3.9.9)
+FROM maven:3.9.9-openjdk-21-slim as builder 
 WORKDIR /app
 
 # Copia o arquivo pom.xml e faz o download das dependências do Maven
