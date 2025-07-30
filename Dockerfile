@@ -13,7 +13,7 @@ COPY src ./src
 RUN mvn package -DskipTests
 
 # Estágio de Runtime
-FROM openjdk:21-jre-slim
+FROM openjdk:21-jre
 WORKDIR /app
 
 # Exponha a porta que sua aplicação Spring Boot escuta (8081, conforme seu application.properties)
