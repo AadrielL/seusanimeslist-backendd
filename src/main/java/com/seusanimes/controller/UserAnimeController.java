@@ -4,8 +4,8 @@ import com.seusanimes.dto.UserAnimeRequest;
 import com.seusanimes.dto.UserAnimeResponse;
 import com.seusanimes.model.User;
 import com.seusanimes.model.UserAnime;
-import com.seusanimes.model.AnimeStatus; // Importação CORRETA do Enum
-import com.seusanimes.model.Categoria; // Importação correta de Categoria
+import com.seusanimes.model.AnimeStatus;
+import com.seusanimes.model.Categoria;
 
 import com.seusanimes.service.AnimeService;
 import com.seusanimes.service.UserAnimeService;
@@ -15,23 +15,21 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails; // Importar UserDetails
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate; // Pode não ser necessário, dependendo do uso
 import java.util.List;
-import java.util.Map; // Para o mapa de contagens
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@CrossOrigin(origins = "http://localhost:5173") // Ajuste para o seu frontend
 @RestController
 @RequestMapping("/api/user-animes")
 public class UserAnimeController {
 
     private final UserAnimeService userAnimeService;
     private final UserService userService;
-    private final AnimeService animeService; // Mantido, mesmo que não usado diretamente nos trechos aqui.
+    private final AnimeService animeService;
 
     @Autowired
     public UserAnimeController(UserAnimeService userAnimeService,
@@ -50,24 +48,23 @@ public class UserAnimeController {
             throw new RuntimeException("Usuário não autenticado.");
         }
 
-        // Tenta obter o username do principal (pode ser String ou UserDetails)
         String username;
         Object principal = authentication.getPrincipal();
         if (principal instanceof UserDetails) {
             username = ((UserDetails) principal).getUsername();
         } else {
-            username = principal.toString(); // Caso seja uma String diretamente
+            username = principal.toString();
         }
 
-        System.out.println("UserAnimeController: Usuário autenticado: " + username); // DEBUG
+        System.out.println("UserAnimeController: Usuário autenticado: " + username);
 
         Optional<User> userOptional = userService.getUserByUsername(username);
         if (!userOptional.isPresent()) {
-            System.out.println("UserAnimeController: Usuário '" + username + "' não encontrado no banco de dados após autenticação!"); // DEBUG
+            System.out.println("UserAnimeController: Usuário '" + username + "' não encontrado no banco de dados após autenticação!");
             throw new RuntimeException("Usuário autenticado não encontrado no banco de dados!");
         }
         Long userId = userOptional.get().getId();
-        System.out.println("UserAnimeController: userId autenticado: " + userId); // DEBUG
+        System.out.println("UserAnimeController: userId autenticado: " + userId);
         return userId;
     }
 
@@ -95,8 +92,8 @@ public class UserAnimeController {
         
         if (userAnime.getAnime().getCategorias() != null && !userAnime.getAnime().getCategorias().isEmpty()) {
             dto.setAnimeGenre(userAnime.getAnime().getCategorias().stream()
-                                            .map(Categoria::getNome)
-                                            .collect(Collectors.joining(", ")));
+                                         .map(Categoria::getNome)
+                                         .collect(Collectors.joining(", ")));
         } else {
             dto.setAnimeGenre(null); 
         }
@@ -118,7 +115,7 @@ public class UserAnimeController {
 
     @PostMapping
     public ResponseEntity<UserAnimeResponse> addAnimeToUserList(@RequestBody UserAnimeRequest request) {
-        System.out.println("UserAnimeController: Acessando addAnimeToUserList (POST)."); // DEBUG
+        System.out.println("UserAnimeController: Acessando addAnimeToUserList (POST).");
         try {
             Long userId = getAuthenticatedUserId();
 
@@ -137,7 +134,7 @@ public class UserAnimeController {
             if (e.getMessage().contains("não encontrado")) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
             }
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null); 
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
 
@@ -145,7 +142,7 @@ public class UserAnimeController {
     public ResponseEntity<UserAnimeResponse> updateAnimeInUserList(
                 @PathVariable Long userAnimeId,
                 @RequestBody UserAnimeRequest request) {
-        System.out.println("UserAnimeController: Acessando updateAnimeInUserList (PUT)."); // DEBUG
+        System.out.println("UserAnimeController: Acessando updateAnimeInUserList (PUT).");
         try {
             Long userId = getAuthenticatedUserId();
 
@@ -165,7 +162,7 @@ public class UserAnimeController {
 
     @DeleteMapping("/{userAnimeId}")
     public ResponseEntity<Void> deleteAnimeFromUserList(@PathVariable Long userAnimeId) {
-        System.out.println("UserAnimeController: Acessando deleteAnimeFromUserList (DELETE)."); // DEBUG
+        System.out.println("UserAnimeController: Acessando deleteAnimeFromUserList (DELETE).");
         Long userId = getAuthenticatedUserId();
 
         boolean deleted = userAnimeService.deleteUserAnime(userId, userAnimeId);
@@ -180,7 +177,7 @@ public class UserAnimeController {
     @GetMapping
     public ResponseEntity<List<UserAnimeResponse>> getUserAnimeList(
                 @RequestParam(required = false) AnimeStatus status) {
-        System.out.println("UserAnimeController: Acessando getUserAnimeList (GET)."); // DEBUG
+        System.out.println("UserAnimeController: Acessando getUserAnimeList (GET).");
         Long userId = getAuthenticatedUserId();
 
         List<UserAnime> userAnimes;
@@ -197,22 +194,19 @@ public class UserAnimeController {
         return ResponseEntity.ok(responses);
     }
 
-    // NOVO ENDPOINT para retornar as contagens de status
     @GetMapping("/status-counts")
     public ResponseEntity<Map<AnimeStatus, Long>> getAnimeStatusCounts() {
-        System.out.println("UserAnimeController: Acessando getAnimeStatusCounts (GET)."); // DEBUG
-        String username = getAuthenticatedUsername(); // Usamos o username aqui
+        System.out.println("UserAnimeController: Acessando getAnimeStatusCounts (GET).");
+        String username = getAuthenticatedUsername();
 
         Map<AnimeStatus, Long> statusCounts = userAnimeService.getAnimeStatusCountsForUser(username);
         return ResponseEntity.ok(statusCounts);
     }
 
-    // O endpoint /count pode ser mantido se ainda houver uso, mas /status-counts é mais abrangente.
-    // Se você não precisa da contagem de um status específico, este pode ser removido.
     @GetMapping("/count")
     public ResponseEntity<Long> countUserAnimesByStatus(
                 @RequestParam AnimeStatus status) {
-        System.out.println("UserAnimeController: Acessando countUserAnimesByStatus (GET)."); // DEBUG
+        System.out.println("UserAnimeController: Acessando countUserAnimesByStatus (GET).");
         Long userId = getAuthenticatedUserId();
 
         if (status == null) {

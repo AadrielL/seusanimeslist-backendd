@@ -1,9 +1,10 @@
-package com.seusanimes.service; // PACOTE CORRETO PARA O SEUSANIMELIST
+package com.seusanimes.service;
 
-import com.seusanimes.model.Anime; // NOVO PACOTE
-import com.seusanimes.model.Categoria; // NOVO PACOTE
-import com.seusanimes.repository.AnimeRepository; // NOVO PACOTE
-import com.seusanimes.repository.CategoriaRepository; // NOVO PACOTE
+import com.seusanimes.model.Anime;
+import com.seusanimes.model.Categoria;
+import com.seusanimes.repository.AnimeRepository;
+import com.seusanimes.repository.CategoriaRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
@@ -24,7 +25,9 @@ public class AnimeExternalService {
     private final AnimeRepository animeRepository;
     private final CategoriaRepository categoriaRepository;
 
-    // Construtor para injeção de dependências
+    @Value("${app.external.api.enabled:true}")
+    private boolean isApiEnabled;
+
     public AnimeExternalService(RestTemplate restTemplate, AnimeRepository animeRepository, CategoriaRepository categoriaRepository) {
         this.restTemplate = restTemplate;
         this.animeRepository = animeRepository;
@@ -33,15 +36,13 @@ public class AnimeExternalService {
 
     private final String EXTERNAL_API_URL = "https://api.jikan.moe/v4/anime";
 
-    @SuppressWarnings("unchecked") // Suprime warnings de unchecked casts de Object para Map/List
+    @SuppressWarnings("unchecked")
     private Anime processAndSaveAnimeData(Map<String, Object> animeData) {
         String titulo = (String) animeData.get("title");
-        // CORREÇÃO: findByTituloContainingIgnoreCase agora retorna List<Anime>
-        // Verificamos se a lista não está vazia para saber se o anime já existe.
         List<Anime> existingAnimes = animeRepository.findByTituloContainingIgnoreCase(titulo);
-        if (!existingAnimes.isEmpty()) { // Correção: usa isEmpty() para verificar se a lista tem elementos
+        if (!existingAnimes.isEmpty()) {
             System.out.println("Anime '" + titulo + "' já existe no banco de dados. Pulando importação.");
-            return existingAnimes.get(0); // Pega o primeiro anime encontrado, se houver
+            return existingAnimes.get(0);
         }
 
         Anime anime = new Anime();
@@ -64,34 +65,31 @@ public class AnimeExternalService {
             String airedString = (String) airedMap.get("from");
             if (airedString != null && !airedString.isEmpty()) {
                 try {
-                    // Tenta parsear a data completa (ex: "2023-01-01T00:00:00+00:00")
-                    LocalDate airedDate = LocalDate.parse(airedString.substring(0, 10)); // Pega só a parte YYYY-MM-DD
+                    LocalDate airedDate = LocalDate.parse(airedString.substring(0, 10));
                     anime.setAnoLancamento(airedDate);
                 } catch (DateTimeParseException | StringIndexOutOfBoundsException e) {
-                    // Se falhar, tenta extrair só o ano
                     try {
                         String[] parts = airedString.split(" ");
                         if (parts.length > 0) {
                             String lastPart = parts[parts.length - 1];
-                            if (lastPart.matches("\\d{4}")) { // Verifica se são 4 dígitos (um ano)
+                            if (lastPart.matches("\\d{4}")) {
                                 Integer year = Integer.parseInt(lastPart);
-                                // Define o ano como 1 de janeiro daquele ano
                                 anime.setAnoLancamento(LocalDate.of(year, 1, 1));
                             } else {
-                                anime.setAnoLancamento(null); // Não conseguiu extrair um ano válido
+                                anime.setAnoLancamento(null);
                             }
                         } else {
-                            anime.setAnoLancamento(null); // String vazia ou sem partes
+                            anime.setAnoLancamento(null);
                         }
                     } catch (NumberFormatException ex) {
-                        anime.setAnoLancamento(null); // Falha ao converter para número
+                        anime.setAnoLancamento(null);
                     }
                 }
             } else {
-                anime.setAnoLancamento(null); // airedString é nula ou vazia
+                anime.setAnoLancamento(null);
             }
         } else {
-            anime.setAnoLancamento(null); // airedMap ou 'from' é nulo
+            anime.setAnoLancamento(null);
         }
 
         List<Map<String, String>> genres = (List<Map<String, String>>) animeData.get("genres");
@@ -100,8 +98,8 @@ public class AnimeExternalService {
                 String categoryName = genreMap.get("name");
                 if (categoryName != null && !categoryName.isEmpty()) {
                     Categoria categoria = categoriaRepository.findByNomeIgnoreCase(categoryName)
-                        .orElseGet(() -> categoriaRepository.save(new Categoria(categoryName)));
-                    anime.addCategoria(categoria); // Garanta que Anime.java tem este método
+                            .orElseGet(() -> categoriaRepository.save(new Categoria(categoryName)));
+                    anime.addCategoria(categoria);
                 }
             }
         }
@@ -110,28 +108,31 @@ public class AnimeExternalService {
     }
 
     @SuppressWarnings("unchecked")
-    // CORRIGIDO: O tipo de retorno agora é Optional<Anime> e o método usa List<Anime> do repo corretamente.
     public Optional<Anime> buscarESalvarAnime(String titulo) {
+        if (!isApiEnabled) {
+            System.err.println("Importação da API externa desabilitada. Recusando requisição.");
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "A importação de dados da API externa está desabilitada.");
+        }
+
         try {
-            // Usa findByTituloContainingIgnoreCase que retorna List<Anime>
             List<Anime> existingAnimes = animeRepository.findByTituloContainingIgnoreCase(titulo);
-            if (!existingAnimes.isEmpty()) { // Verifica se a lista não está vazia
+            if (!existingAnimes.isEmpty()) {
                 System.out.println("Anime '" + titulo + "' já existe no banco de dados. Retornando existente.");
-                return Optional.of(existingAnimes.get(0)); // Retorna o primeiro anime encontrado encapsulado em Optional
+                return Optional.of(existingAnimes.get(0));
             }
 
-            String searchUrl = EXTERNAL_API_URL + "?q=" + titulo + "&sfw"; // Adicionado &sfw para conteúdo seguro
+            String searchUrl = EXTERNAL_API_URL + "?q=" + titulo + "&sfw";
             Map<String, Object> response = restTemplate.getForObject(searchUrl, Map.class);
 
             if (response != null && response.containsKey("data")) {
                 List<Map<String, Object>> dataList = (List<Map<String, Object>>) response.get("data");
 
                 if (!dataList.isEmpty()) {
-                    Map<String, Object> animeData = dataList.get(0); // Pega o primeiro resultado da API externa
-                    return Optional.of(processAndSaveAnimeData(animeData)); // Processa, salva e retorna em um Optional
+                    Map<String, Object> animeData = dataList.get(0);
+                    return Optional.of(processAndSaveAnimeData(animeData));
                 }
             }
-            return Optional.empty(); // Nenhum anime encontrado na API externa
+            return Optional.empty();
         } catch (HttpClientErrorException.NotFound e) {
             System.err.println("API externa retornou 404 para o título: " + titulo);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Anime não encontrado na API externa.", e);
@@ -143,11 +144,14 @@ public class AnimeExternalService {
 
     @SuppressWarnings("unchecked")
     public List<Anime> buscarESalvarAnimesPorAno(Integer ano) {
+        if (!isApiEnabled) {
+            System.err.println("Importação da API externa desabilitada. Recusando requisição.");
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "A importação de dados da API externa está desabilitada.");
+        }
+
         List<Anime> savedAnimes = new ArrayList<>();
         try {
-            // A API Jikan.moe pode ter limites de página. Para um ano, pode haver muitas páginas.
-            // Esta implementação pega apenas a primeira página. Para mais, seria necessário paginar.
-            String url = EXTERNAL_API_URL + "?start_date=" + ano + "-01-01&end_date=" + ano + "-12-31&sfw"; // Adicionado &sfw
+            String url = EXTERNAL_API_URL + "?start_date=" + ano + "-01-01&end_date=" + ano + "-12-31&sfw";
             Map<String, Object> response = restTemplate.getForObject(url, Map.class);
 
             if (response != null && response.containsKey("data")) {
@@ -159,7 +163,6 @@ public class AnimeExternalService {
                         savedAnimes.add(savedAnime);
                     } catch (Exception e) {
                         System.err.println("Erro ao processar e salvar anime (ID Jikan: " + animeData.get("mal_id") + ", Título: " + animeData.get("title") + "): " + e.getMessage());
-                        // Continua processando os outros animes mesmo com erro em um
                     }
                 }
             }
@@ -172,4 +175,4 @@ public class AnimeExternalService {
         }
         return savedAnimes;
     }
-} 
+}
