@@ -3,10 +3,10 @@ package com.seusanimes.controller;
 import com.seusanimes.model.Anime;
 import com.seusanimes.service.AnimeService;
 import com.seusanimes.service.AnimeExternalService;
-
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,83 +22,64 @@ public class AnimeController {
     private final AnimeService animeService;
     private final AnimeExternalService animeExternalService;
 
+    @Autowired
     public AnimeController(AnimeService animeService, AnimeExternalService animeExternalService) {
         this.animeService = animeService;
         this.animeExternalService = animeExternalService;
     }
 
-    // 🚀 NOVO ENDPOINT PRINCIPAL: PAGINAÇÃO E FILTROS!
-    // GET /api/animes?page=0&size=20&sort=titulo,asc
+    // 1. BUSCA GERAL (PAGINADA) - Corrigido para chamar .findAll(pageable)
     @GetMapping
-    public ResponseEntity<Page<Anime>> listarAnimesPaginados(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            // Exemplo: ?sort=titulo,asc
-            @RequestParam(defaultValue = "id,desc") String[] sort,
-            // Filtros agora usam endpoints separados ou o endpoint de busca
-            @RequestParam(required = false) String titulo,
-            @RequestParam(required = false) Integer ano) {
+    public ResponseEntity<Page<Anime>> getAllAnimes(
+            @PageableDefault(size = 10, sort = "titulo") Pageable pageable) {
 
-        // Cria o objeto Sort e PageRequest
-        Sort sorting = Sort.by(Sort.Direction.fromString(sort[1]), sort[0]);
-        PageRequest pageRequest = PageRequest.of(page, size, sorting);
-
-        // A lógica de filtros grandes deve ser isolada, mas mantemos o getAllAnimes para o caso geral
-
-        // Se o título ou ano estiverem presentes, é melhor usar os endpoints de busca dedicados
-        // Para o GET principal, focamos no carregamento paginado e geral
-
-        // Se houver filtro por título, o usuário deveria usar /api/animes/search?q=...
-        // Se houver filtro por ano, o usuário deveria usar /api/animes/ano?ano=...
-
-        // Por enquanto, apenas chama o método paginado geral, resolvendo a lentidão
-        Page<Anime> animesPage = animeService.getAllAnimes(pageRequest);
-
+        Page<Anime> animesPage = animeService.findAll(pageable); // 👈 Corrigido: Usando findAll
         return ResponseEntity.ok(animesPage);
     }
 
     // ---------------------------------------------------------------------
-    // Endpoints de Busca por Filtro (mantidos separados para clareza)
+    // Endpoints de Busca por Filtro
     // ---------------------------------------------------------------------
 
-    // Busca por Título (Melhorado para ser mais RESTful)
-    // Mantido como List<Anime>
+    // 2. BUSCA POR TÍTULO
     @GetMapping("/search")
     public ResponseEntity<List<Anime>> searchAnimes(@RequestParam String q) {
         List<Anime> animes = animeService.findByTituloContainingIgnoreCase(q);
         return animes.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(animes);
     }
 
-    // Busca por Gênero/Categoria (Corrigido para usar o método correto no Service)
+    // 3. BUSCA POR GÊNERO/CATEGORIA
     @GetMapping("/genre/{genre}")
     public ResponseEntity<List<Anime>> getAnimesByGenre(@PathVariable String genre) {
-        // ✅ CORREÇÃO: Chama o método findAnimesByGenre, que agora existe no Service
         List<Anime> animes = animeService.findAnimesByGenre(genre);
         return animes.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(animes);
     }
 
-    // Busca por Ano (Endpoint de busca separado)
-    @GetMapping("/ano")
-    public ResponseEntity<List<Anime>> getAnimesByAno(@RequestParam Integer ano) {
-        // A busca por ano também deveria ser paginada, mas por enquanto, chamamos o método existente.
-        List<Anime> animes = animeService.findByAnoLancamento(ano);
-        return animes.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(animes);
+    // 4. BUSCA POR ANO DE LANÇAMENTO (PAGINADA E CORRIGIDA)
+    @GetMapping("/ano/{ano}") // Ajuste para PathVariable para consistência
+    public ResponseEntity<Page<Anime>> getAnimesByAnoLancamento(
+            @PathVariable Integer ano,
+            @PageableDefault(size = 10, sort = "id") Pageable pageable) {
+
+        // Linha 84 Corrigida: Passando o Pageable
+        Page<Anime> animesPage = animeService.findByAnoLancamento(ano, pageable);
+        return ResponseEntity.ok(animesPage);
     }
 
     // ---------------------------------------------------------------------
-    // Endpoints CRUD e External Service (Sem alteração, pois estavam corretos)
+    // Endpoints CRUD e External Service
     // ---------------------------------------------------------------------
 
+    // 5. BUSCA POR ID - Corrigido para chamar .findById(id)
     @GetMapping("/{id}")
     public ResponseEntity<Anime> getAnimeById(@PathVariable Long id) {
-        Optional<Anime> anime = animeService.getAnimeById(id);
+        Optional<Anime> anime = animeService.findById(id); // 👈 Corrigido: Usando findById
         return anime.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/buscar-e-salvar")
     public ResponseEntity<Anime> buscarESalvarAnime(@RequestParam String titulo) {
-        // ... (lógica do external service)
         try {
             Optional<Anime> animeSalvo = animeExternalService.buscarESalvarAnime(titulo);
             return animeSalvo.map(anime -> ResponseEntity.status(HttpStatus.CREATED).body(anime))
@@ -113,7 +94,6 @@ public class AnimeController {
 
     @PostMapping("/buscar-e-salvar-por-ano")
     public ResponseEntity<List<Anime>> buscarESalvarAnimesPorAno(@RequestParam Integer ano) {
-        // ... (lógica do external service)
         try {
             List<Anime> animesSalvos = animeExternalService.buscarESalvarAnimesPorAno(ano);
             if (animesSalvos.isEmpty()) {
@@ -128,22 +108,26 @@ public class AnimeController {
         }
     }
 
+    // 6. CRIAR NOVO ANIME - Corrigido para chamar .save(anime)
     @PostMapping
     public ResponseEntity<Anime> criarAnime(@RequestBody Anime anime) {
-        Anime novoAnime = animeService.criarAnime(anime);
+        Anime novoAnime = animeService.save(anime); // 👈 Corrigido: Usando save
         return ResponseEntity.status(HttpStatus.CREATED).body(novoAnime);
     }
 
+    // 7. ATUALIZAR ANIME
     @PutMapping("/{id}")
     public ResponseEntity<Anime> atualizarAnime(@PathVariable Long id, @RequestBody Anime animeAtualizado) {
-        Optional<Anime> updatedAnime = animeService.atualizarAnime(id, animeAtualizado);
+        // Linha 139 Corrigida: Usando updateAnime
+        Optional<Anime> updatedAnime = animeService.updateAnime(id, animeAtualizado);
         return updatedAnime.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // 8. DELETAR ANIME - Corrigido para chamar .deleteById(id)
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletarAnime(@PathVariable Long id) {
-        animeService.deletarAnime(id);
+        animeService.deleteById(id); // 👈 Corrigido: Usando deleteById
     }
 }

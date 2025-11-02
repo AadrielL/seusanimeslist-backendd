@@ -3,9 +3,8 @@ package com.seusanimes.service;
 import com.seusanimes.model.Anime;
 import com.seusanimes.repository.AnimeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page; // NOVO: Importe a classe Page
-import org.springframework.data.domain.Pageable; // NOVO: Importe a classe Pageable
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,56 +20,42 @@ public class AnimeService {
         this.animeRepository = animeRepository;
     }
 
-    // 🛑 CORREÇÃO DA LENTIDÃO: Mude para Page<Anime> e adicione Pageable
-    public Page<Anime> getAllAnimes(Pageable pageable) {
-        // Agora retorna apenas uma 'página' de resultados ordenada
+    // 1. BUSCA GERAL (PAGINADO)
+    public Page<Anime> findAll(Pageable pageable) {
         return animeRepository.findAll(pageable);
     }
 
-    public Optional<Anime> getAnimeById(Long id) {
+    // 2. BUSCA POR ID
+    public Optional<Anime> findById(Long id) {
         return animeRepository.findById(id);
     }
 
-    // ---------------------------------------------------------------------
-    // Métodos de Busca: Mantenho o nome do Repository aqui por simplicidade
-    // ---------------------------------------------------------------------
+    // 3. BUSCA POR ANO DE LANÇAMENTO (PAGINADO)
+    public Page<Anime> findByAnoLancamento(Integer ano, Pageable pageable) {
+        // Agora o Service chama o Repository com os dois argumentos
+        return animeRepository.findByAnoLancamento(ano, pageable);
+    }
 
-    // Método de busca por título (sem paginação, pois busca por palavra-chave costuma ser completa)
+    // 4. BUSCA POR TÍTULO
     public List<Anime> findByTituloContainingIgnoreCase(String titulo) {
         return animeRepository.findByTituloContainingIgnoreCase(titulo);
     }
 
-    // ✅ Otimização: Busca por ano também deveria ser paginada (muitos animes por ano)
-    // OBS: Seu AnimeRepository precisará ser ajustado para aceitar Pageable neste método
-    public Page<Anime> findByAnoLancamento(Integer ano, Pageable pageable) {
-        // Se o seu Repository suportar o método, use:
-        // return animeRepository.findByAnoLancamento(ano, pageable);
-
-        // Se o seu Repository for simples, use o método findAll, mas filtre a lista (menos eficiente):
-        throw new UnsupportedOperationException("Este método deve ser implementado no Repository para aceitar Pageable.");
-
-        // Se o Repository não for alterado, o método ficará:
-        // return animeRepository.findByAnoLancamento(ano);
-    }
-
-    // ✅ CORREÇÃO DE NOME: Renomeio o método para refletir o que está no Controller
+    // 5. BUSCA POR GÊNERO/CATEGORIA
     public List<Anime> findAnimesByGenre(String categoria) {
-        // O nome do método é findByCategorias_NomeContainingIgnoreCase
         return animeRepository.findByCategorias_NomeContainingIgnoreCase(categoria);
     }
 
-    // ---------------------------------------------------------------------
-    // Métodos de CRUD (Sem alteração)
-    // ---------------------------------------------------------------------
-
-    public Anime criarAnime(Anime anime) {
+    // 6. SALVAR/ATUALIZAR
+    public Anime save(Anime anime) {
         return animeRepository.save(anime);
     }
 
-    public Optional<Anime> atualizarAnime(Long id, Anime animeAtualizado) {
-        // ... (lógica de atualização permanece a mesma, pois está correta) ...
+    // 7. ATUALIZAR (Lógica completa baseada no seu código)
+    public Optional<Anime> updateAnime(Long id, Anime animeAtualizado) {
         return animeRepository.findById(id)
                 .map(anime -> {
+                    // Mapeamento dos campos
                     anime.setTitulo(animeAtualizado.getTitulo());
                     anime.setSinopse(animeAtualizado.getSinopse());
                     anime.setEpisodios(animeAtualizado.getEpisodios());
@@ -85,7 +70,8 @@ public class AnimeService {
                 });
     }
 
-    public void deletarAnime(Long id) {
+    // 8. DELETAR POR ID
+    public void deleteById(Long id) {
         animeRepository.deleteById(id);
     }
 }
