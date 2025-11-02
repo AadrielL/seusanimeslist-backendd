@@ -2,6 +2,12 @@
 FROM openjdk:21-jdk-slim-bullseye as builder 
 WORKDIR /app
 
+# -------------------------------------------------------------
+# 🌟 CORREÇÃO CRÍTICA: Definir JAVA_HOME para o Maven Wrapper/Instalação
+# openjdk:21-jdk-slim-bullseye usa /usr/lib/jvm/java-21-openjdk-amd64
+ENV JAVA_HOME /usr/lib/jvm/java-21-openjdk-amd64
+# -------------------------------------------------------------
+
 # Instala o Maven manualmente
 # Assegure-se que os pacotes necessários para download e descompactação estejam disponíveis
 RUN apt-get update && apt-get install -y wget unzip && \
@@ -32,5 +38,3 @@ COPY --from=builder /app/target/seusanimes-backend-0.0.1-SNAPSHOT.jar ./app.jar
 
 # Define o comando de inicialização da aplicação
 ENTRYPOINT ["java", "-jar", "app.jar"]
-# Alteração trivial para forçar novo deploy
-# Ultima tentativa!
