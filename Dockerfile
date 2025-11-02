@@ -1,13 +1,14 @@
 # Estágio de Build
-# Estágio de Build
 FROM openjdk:21-jdk-slim-bullseye as builder
 WORKDIR /app
 
 # -------------------------------------------------------------
-# 🌟 CORREÇÃO: Usar o caminho padrão do JDK nesta imagem
-# Alterar de /usr/lib/jvm/java-21-openjdk-amd64 para:
-ENV JAVA_HOME /usr/lib/jvm/java-21-openjdk
-# ------------------------------------------------------------------------------------------------------------------------
+# 🌟 CORREÇÃO FINAL PARA JAVA_HOME EM SLIM IMAGES
+# Este é o caminho mais provável para o JDK na imagem base.
+ENV JAVA_HOME /usr/lib/jvm/java-21-openjdk-amd64
+# Garante que o diretório do Maven está no PATH para ser encontrado
+ENV PATH $PATH:/opt/maven/apache-maven-3.9.9/bin
+# -------------------------------------------------------------
 
 # Instala o Maven manualmente
 # Assegure-se que os pacotes necessários para download e descompactação estejam disponíveis
@@ -15,7 +16,9 @@ RUN apt-get update && apt-get install -y wget unzip && \
     wget https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.zip -P /tmp && \
     unzip -d /opt/maven /tmp/apache-maven-3.9.9-bin.zip && \
     rm /tmp/apache-maven-3.9.9-bin.zip && \
-    ln -s /opt/maven/apache-maven-3.9.9/bin/mvn /usr/local/bin/mvn
+    # Remove a linha "ln -s..." que foi substituída por "ENV PATH"
+    # ln -s /opt/maven/apache-maven-3.9.9/bin/mvn /usr/local/bin/mvn
+    rm -rf /var/lib/apt/lists/*
 
 # Agora, o Maven está disponível, continue com o build
 COPY pom.xml .
