@@ -1,12 +1,13 @@
 # Estágio de Build
-FROM openjdk:21-jdk-slim-bullseye as builder 
+# Estágio de Build
+FROM openjdk:21-jdk-slim-bullseye as builder
 WORKDIR /app
 
 # -------------------------------------------------------------
-# 🌟 CORREÇÃO CRÍTICA: Definir JAVA_HOME para o Maven Wrapper/Instalação
-# openjdk:21-jdk-slim-bullseye usa /usr/lib/jvm/java-21-openjdk-amd64
-ENV JAVA_HOME /usr/lib/jvm/java-21-openjdk-amd64
-# -------------------------------------------------------------
+# 🌟 CORREÇÃO: Usar o caminho padrão do JDK nesta imagem
+# Alterar de /usr/lib/jvm/java-21-openjdk-amd64 para:
+ENV JAVA_HOME /usr/lib/jvm/java-21-openjdk
+# ------------------------------------------------------------------------------------------------------------------------
 
 # Instala o Maven manualmente
 # Assegure-se que os pacotes necessários para download e descompactação estejam disponíveis
